@@ -3,7 +3,7 @@
 #include <stdbool.h>
 void initQueue(void);
 void destroyQueue(void);
-void enqueue(const void*);
+void enqueue(void*);
 void* dequeue(void);
 bool tryDequeue(void**);
 size_t size(void);
