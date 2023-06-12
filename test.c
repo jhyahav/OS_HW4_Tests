@@ -2,16 +2,20 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <stdbool.h>
+#include <unistd.h>
 #include "queue.c"
 
 #define NUM_OPERATIONS 10
 #define MAX_SIZE 1000
-#define NUM_THREADS_CONC 5
+#define NUM_THREADS_CONC 100
+#define NUM_THREADS 50
 
 int dequeue_with_sleep(void *arg);
 int enqueueItems(void *arg);
 int enqueue_thread(void *arg);
 int dequeue_thread(void *arg);
+int consumer_thread(void *arg);
+int producer_thread(void *arg);
 
 void test_destroyQueue()
 {
@@ -303,6 +307,73 @@ int dequeue_with_sleep(void *arg)
     return 0;
 }
 
+void test_fifo_order()
+{
+    printf("=== Testing FIFO order ===\n");
+
+    initQueue();
+
+    thrd_t consumer_threads[NUM_THREADS];
+    int dequeue_order[NUM_THREADS];
+
+    // Create consumer threads
+    for (int i = 0; i < NUM_THREADS; i++)
+    {
+        dequeue_order[i] = -1; // Initialize the dequeue order
+        thrd_create(&consumer_threads[i], consumer_thread, &dequeue_order[i]);
+        sleep(10000);
+    }
+
+    // Create producer thread
+    thrd_t producer_thread_handle;
+    thrd_create(&producer_thread_handle, producer_thread, NULL);
+
+    // Wait for the producer thread to finish
+    thrd_join(producer_thread_handle, NULL);
+
+    // Wait for all consumer threads to finish dequeuing
+    for (int i = 0; i < NUM_THREADS; i++)
+    {
+        thrd_join(consumer_threads[i], NULL);
+    }
+
+    // Verify FIFO order
+    for (int i = 0; i < NUM_THREADS; i++)
+    {
+        printf("Thread %d dequeued item %d\n", i, dequeue_order[i]);
+        assert(dequeue_order[i] == i + 1);
+    }
+
+    destroyQueue();
+
+    printf("FIFO order test passed.\n");
+}
+
+int consumer_thread(void *arg)
+{
+    int *dequeue_order = (int *)arg;
+
+    void *item = dequeue();
+
+    *dequeue_order = *(int *)item;
+
+    return 0;
+}
+
+int producer_thread(void *arg)
+{
+    (void)arg;
+
+    // Enqueue at least NUM_THREADS items
+    for (int i = 0; i < NUM_THREADS; i++)
+    {
+        int *item = malloc(sizeof(int));
+        *item = i + 1;
+        enqueue(item);
+    }
+
+    return 0;
+}
 void test_multiconcurrent_enqueue_dequeue()
 {
     printf("=== Testing multiconcurrent enqueue and dequeue ===\n");
@@ -323,7 +394,6 @@ void test_multiconcurrent_enqueue_dequeue()
     {
         thrd_create(&enqueueThreads[i], (int (*)(void *))enqueue_thread, NULL);
     }
-
     // Wait for enqueueing threads to finish
     for (int i = 0; i < NUM_THREADS_CONC; i++)
     {
@@ -460,6 +530,7 @@ int main()
     test_size();
     test_waiting();
     test_basic_concurrent_enqueue_dequeue();
+    test_fifo_order();
     test_multiconcurrent_enqueue_dequeue();
     test_enqueue_tryDequeue();
     test_enqueue_dequeue_with_sleep();
