@@ -321,7 +321,7 @@ void test_fifo_order()
     {
         dequeue_order[i] = -1; // Initialize the dequeue order
         thrd_create(&consumer_threads[i], consumer_thread, &dequeue_order[i]);
-        sleep(10000);
+        sleep(0.1);
     }
 
     // Create producer thread
