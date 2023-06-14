@@ -9,6 +9,7 @@
 #define MAX_SIZE 1000
 #define NUM_THREADS_CONC 100
 #define NUM_THREADS 50
+#define SECOND_IN_NANOSECONDS 1000000000
 
 int dequeue_with_sleep(void *arg);
 int enqueueItems(void *arg);
@@ -325,7 +326,9 @@ void test_fifo_order()
     {
         dequeue_order[i] = -1; // Initialize the dequeue order
         thrd_create(&consumer_threads[i], consumer_thread, &dequeue_order[i]);
-        sleep(1);
+        thrd_sleep(
+            &(const struct timespec){.tv_nsec = 0.005 * SECOND_IN_NANOSECONDS},
+            NULL);
     }
 
     // Create producer thread
